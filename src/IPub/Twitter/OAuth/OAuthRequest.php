@@ -99,15 +99,6 @@ class OAuthRequest
 	 */
 	public static function from_consumer_and_token($consumer, $token, $http_method, $http_url, $parameters = NULL)
 	{
-		$parameters = ($parameters) ? $parameters : array();
-		$defaults = array("oauth_version" => OAuthRequest::$version,
-			"oauth_nonce" => OAuthRequest::generate_nonce(),
-			"oauth_timestamp" => OAuthRequest::generate_timestamp(),
-			"oauth_consumer_key" => $consumer->key);
-		if ($token)
-			$defaults['oauth_token'] = $token->key;
-
-		$parameters = array_merge($defaults, $parameters);
 
 		return new OAuthRequest($http_method, $http_url, $parameters);
 	}
@@ -141,84 +132,6 @@ class OAuthRequest
 	public function unset_parameter($name)
 	{
 		unset($this->parameters[$name]);
-	}
-
-	/**
-	 * The request parameters, sorted and concatenated into a normalized string.
-	 * @return string
-	 */
-	public function get_signable_parameters()
-	{
-		// Grab all parameters
-		$params = $this->parameters;
-
-		// Remove oauth_signature if present
-		// Ref: Spec: 9.1.1 ("The oauth_signature parameter MUST be excluded.")
-		if (isset($params['oauth_signature'])) {
-			unset($params['oauth_signature']);
-		}
-
-		return OAuthUtil::build_http_query($params);
-	}
-
-	/**
-	 * Returns the base string of this request
-	 *
-	 * The base string defined as the method, the url
-	 * and the parameters (normalized), each urlencoded
-	 * and the concated with &.
-	 */
-	public function get_signature_base_string()
-	{
-		$parts = array(
-			$this->get_normalized_http_method(),
-			$this->get_normalized_http_url(),
-			$this->get_signable_parameters()
-		);
-
-		$parts = OAuthUtil::urlencode_rfc3986($parts);
-
-		return implode('&', $parts);
-	}
-
-	/**
-	 * just uppercases the http method
-	 */
-	public function get_normalized_http_method()
-	{
-		return strtoupper($this->http_method);
-	}
-
-	/**
-	 * parses the url and rebuilds it to be
-	 * scheme://host/path
-	 */
-	public function get_normalized_http_url()
-	{
-		$parts = parse_url($this->http_url);
-
-		$scheme = (isset($parts['scheme'])) ? $parts['scheme'] : 'http';
-		$port = (isset($parts['port'])) ? $parts['port'] : (($scheme == 'https') ? '443' : '80');
-		$host = (isset($parts['host'])) ? $parts['host'] : '';
-		$path = (isset($parts['path'])) ? $parts['path'] : '';
-
-		if (($scheme == 'https' && $port != '443') || ($scheme == 'http' && $port != '80')) {
-			$host = "$host:$port";
-		}
-		return "$scheme://$host$path";
-	}
-
-	/**
-	 * builds a url usable for a GET request
-	 */
-	public function to_url()
-	{
-		$post_data = $this->to_postdata();
-		$out = $this->get_normalized_http_url();
-		if ($post_data) {
-			$out .= '?' . $post_data;
-		}
-		return $out;
 	}
 
 	/**
@@ -258,44 +171,4 @@ class OAuthRequest
 		}
 		return $out;
 	}
-
-	public function __toString()
-	{
-		return $this->to_url();
-	}
-
-	public function sign_request($signature_method, $consumer, $token)
-	{
-		$this->set_parameter(
-			"oauth_signature_method", $signature_method->get_name(), FALSE
-		);
-		$signature = $this->build_signature($signature_method, $consumer, $token);
-		$this->set_parameter("oauth_signature", $signature, FALSE);
-	}
-
-	public function build_signature($signature_method, $consumer, $token)
-	{
-		$signature = $signature_method->build_signature($this, $consumer, $token);
-		return $signature;
-	}
-
-	/**
-	 * util function: current timestamp
-	 */
-	private static function generate_timestamp()
-	{
-		return time();
-	}
-
-	/**
-	 * util function: current nonce
-	 */
-	private static function generate_nonce()
-	{
-		$mt = microtime();
-		$rand = mt_rand();
-
-		return md5($mt . $rand); // md5s look nicer than numbers
-	}
-
 }

@@ -36,15 +36,8 @@ class TwitterExtension extends DI\CompilerExtension
 		'appSecret' => NULL,
 		'permission' => 'read',          // read/write/delete
 		'clearAllWithLogout' => TRUE,
-		'curlOptions' => [],
 		'debugger' => '%debugMode%',
 	];
-
-	public function __construct()
-	{
-		// Apply default curl options from api
-		$this->defaults['curlOptions'] = IPub\Twitter\Api\CurlClient::$defaultCurlOptions;
-	}
 
 	public function loadConfiguration()
 	{
@@ -65,25 +58,14 @@ class TwitterExtension extends DI\CompilerExtension
 			])
 			->addSetup('$permission', [$config['permission']]);
 
-		foreach ($config['curlOptions'] as $option => $value) {
-			if (defined($option)) {
-				unset($config['curlOptions'][$option]);
-				$config['curlOptions'][constant($option)] = $value;
-			}
-		}
-
-		$httpClient = $builder->addDefinition($this->prefix('httpClient'))
-			->setClass('IPub\Twitter\Api\CurlClient')
-			->addSetup('$service->curlOptions = ?;', [$config['curlOptions']]);
-
 		$builder->addDefinition($this->prefix('session'))
 			->setClass('IPub\Twitter\SessionStorage');
 
 		if ($config['clearAllWithLogout']) {
 			$builder->getDefinition('user')
-				->addSetup('$sl = ?; ?->onLoggedOut[] = function () use ($sl) { $sl->getService(?)->clearAll(); }', array(
+				->addSetup('$sl = ?; ?->onLoggedOut[] = function () use ($sl) { $sl->getService(?)->clearAll(); }', [
 					'@container', '@self', $this->prefix('session')
-				));
+				]);
 		}
 
 /*

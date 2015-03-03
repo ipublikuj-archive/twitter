@@ -26,13 +26,10 @@ use IPub\Twitter\Api;
 
 class Client extends Nette\Object
 {
-	/**
-	 * OAuth version
-	 */
-	const VERSION = '1.0';
+
 
 	/**
-	 * @var HttpClient
+	 * @var IPub\OAuth\HttpClient
 	 */
 	private $httpClient;
 
@@ -69,13 +66,13 @@ class Client extends Nette\Object
 	/**
 	 * @param Configuration $config
 	 * @param SessionStorage $session
-	 * @param HttpClient $httpClient
+	 * @param IPub\OAuth\HttpClient $httpClient
 	 * @param Http\IRequest $httpRequest
 	 */
 	public function __construct(
 		Configuration $config,
 		SessionStorage $session,
-		HttpClient $httpClient,
+		IPub\OAuth\HttpClient $httpClient,
 		Nette\Http\IRequest $httpRequest
 	){
 		$this->config = $config;
@@ -306,7 +303,7 @@ class Client extends Nette\Object
 	 * @param array $headers
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 * 
+	 *
 	 * @throws Exceptions\ApiException
 	 */
 	public function delete($path, array $params = [], array $headers = [])
