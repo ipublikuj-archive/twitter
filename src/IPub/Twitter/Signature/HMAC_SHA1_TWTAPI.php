@@ -16,7 +16,6 @@ namespace IPub\Twitter\Signature;
 
 use IPub;
 use IPub\OAuth;
-use IPub\OAuth\Api;
 use IPub\OAuth\Utils;
 
 /**
@@ -28,7 +27,7 @@ use IPub\OAuth\Utils;
  * @package		iPublikuj:OAuth!
  * @subpackage	Signature
  */
-class HMAC_SHA1_TWTAPI extends HMAC_SHA1
+class HMAC_SHA1_TWTAPI extends OAuth\Signature\HMAC_SHA1
 {
 	/**
 	 * {@inheritdoc}
