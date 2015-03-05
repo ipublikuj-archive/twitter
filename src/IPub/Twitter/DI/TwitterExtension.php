@@ -34,9 +34,7 @@ class TwitterExtension extends DI\CompilerExtension
 	protected $defaults = [
 		'appKey' => NULL,
 		'appSecret' => NULL,
-		'permission' => 'read',          // read/write/delete
 		'clearAllWithLogout' => TRUE,
-		'debugger' => '%debugMode%',
 	];
 
 	public function loadConfiguration()
@@ -46,7 +44,6 @@ class TwitterExtension extends DI\CompilerExtension
 
 		Utils\Validators::assert($config['appKey'], 'string', 'Application key');
 		Utils\Validators::assert($config['appSecret'], 'string', 'Application secret');
-		Utils\Validators::assert($config['permission'], 'string', 'Application permission');
 
 		// Create oAuth consumer
 		$consumer = new IPub\OAuth\Consumer($config['appKey'], $config['appSecret']);
@@ -58,15 +55,10 @@ class TwitterExtension extends DI\CompilerExtension
 			->setClass('IPub\Twitter\Configuration', [
 				$config['appKey'],
 				$config['appSecret'],
-			])
-			->addSetup('$permission', [$config['permission']]);
+			]);
 
 		$builder->addDefinition($this->prefix('session'))
 			->setClass('IPub\Twitter\SessionStorage');
-
-		$builder->addDefinition($this->prefix('signature.hmacsha1twtapi'))
-			->setClass('IPub\Twitter\Signature\HMAC_SHA1_TWTAPI')
-			->addTag(IPub\OAuth\DI\OAuthExtension::TAG_SIGNATURE_METHOD);
 
 		if ($config['clearAllWithLogout']) {
 			$builder->getDefinition('user')

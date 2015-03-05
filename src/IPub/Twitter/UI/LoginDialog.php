@@ -137,8 +137,7 @@ class LoginDialog extends Application\UI\Control
 	public function getQueryParams()
 	{
 		$params = [
-			'oauth_token' => $this->session->request_token,
-			'perms' => $this->config->permission
+			'oauth_token' => $this->session->request_token
 		];
 
 		return $params;

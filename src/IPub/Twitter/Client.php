@@ -20,9 +20,9 @@ use Nette\Utils;
 
 use IPub;
 use IPub\Twitter;
+use IPub\Twitter\Api;
 
 use IPub\OAuth;
-use Tracy\Debugger;
 
 class Client extends Nette\Object
 {
@@ -242,14 +242,14 @@ class Client extends Nette\Object
 	/**
 	 * @param string $path
 	 * @param array $params
-	 * @param array|string $post
+	 * @param array $post
 	 * @param array $headers
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
 	 * @throws OAuth\Exceptions\ApiException
 	 */
-	public function post($path, array $params = [], $post = [], array $headers = [])
+	public function post($path, array $params = [], array $post = [], array $headers = [])
 	{
 		return $this->api($path, OAuth\Api\Request::POST, $params, $post, $headers);
 	}
@@ -257,14 +257,14 @@ class Client extends Nette\Object
 	/**
 	 * @param string $path
 	 * @param array $params
-	 * @param array|string $post
+	 * @param array $post
 	 * @param array $headers
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
 	 * @throws OAuth\Exceptions\ApiException
 	 */
-	public function patch($path, array $params = [], $post = [], array $headers = [])
+	public function patch($path, array $params = [], array $post = [], array $headers = [])
 	{
 		return $this->api($path, OAuth\Api\Request::PATCH, $params, $post, $headers);
 	}
@@ -272,14 +272,14 @@ class Client extends Nette\Object
 	/**
 	 * @param string $path
 	 * @param array $params
-	 * @param array|string $post
+	 * @param array $post
 	 * @param array $headers
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
 	 * @throws OAuth\Exceptions\ApiException
 	 */
-	public function put($path, array $params = [], $post = [], array $headers = [])
+	public function put($path, array $params = [], array $post = [], array $headers = [])
 	{
 		return $this->api($path, OAuth\Api\Request::PUT, $params, $post, $headers);
 	}
@@ -307,14 +307,14 @@ class Client extends Nette\Object
 	 * @param string $path
 	 * @param string $method The argument is optional
 	 * @param array $params Query parameters
-	 * @param array|string $post Post request parameters or body to send
+	 * @param array $post Post request parameters or body to send
 	 * @param array $headers Http request headers
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
 	 * @throws OAuth\Exceptions\ApiException
 	 */
-	public function api($path, $method = OAuth\Api\Request::GET, array $params = [], $post = [], array $headers = [])
+	public function api($path, $method = OAuth\Api\Request::GET, array $params = [], array $post = [], array $headers = [])
 	{
 		if (is_array($method)) {
 			$headers = $post;
@@ -323,10 +323,9 @@ class Client extends Nette\Object
 			$method = OAuth\Api\Request::GET;
 		}
 
-		$accessToken = $this->getAccessToken();
 		$response = $this->httpClient->makeRequest(
-			new OAuth\Api\Request($this->consumer, $this->config->createUrl('api', $path, $params), $method, $post, $headers, $accessToken, ($accessToken ? TRUE:FALSE)),
-			'HMAC-SHA1-TWTAPI'
+			new Api\Request($this->consumer, $this->config->createUrl('api', $path, $params), $method, $post, $headers, $this->getAccessToken()),
+			'HMAC-SHA1'
 		);
 
 		if (!$response->isJson() || (!$data = Utils\ArrayHash::from($response->toArray()))) {
@@ -345,35 +344,49 @@ class Client extends Nette\Object
 	 * Upload photo to the Twitter
 	 *
 	 * @param string $file
+	 * @param string|null $status
 	 *
-	 * @return int
+	 * @return Utils\ArrayHash
 	 *
 	 * @throws Exceptions\InvalidArgumentException
 	 * @throws OAuth\Exceptions\ApiException|static
 	 */
-	public function uploadMedia($file)
+	public function uploadMedia($file, $status = NULL)
 	{
 		if (!file_exists($file)) {
 			throw new Exceptions\InvalidArgumentException("File '$file' does not exists. Please provide valid path to file.");
 		}
 
-		// Add file to post params
-		$post = [
-			'media' => new \CURLFile($file),
-		];
+		if ($status && !is_string($status)) {
+			throw new Exceptions\InvalidArgumentException("Status text '$status' have to be a string. Please provide valid status text.");
+		}
 
-		$accessToken = $this->getAccessToken();
-		$response = $this->httpClient->makeRequest(
-			new OAuth\Api\Request($this->consumer, $this->config->createUrl('upload', 'media/upload.json'), OAuth\Api\Request::POST, $post, [], $accessToken, ($accessToken ? TRUE:FALSE)),
-			'HMAC-SHA1-TWTAPI'
-		);
+		if ($status) {
+			$post = [
+				'media[]' => new \CURLFile($file),
+				'status' => $status
+			];
 
-		if ($response->isOk() && $response->isJson() && ($data = Utils\ArrayHash::from($response->toArray()))) {
-			return $data;
+			return $this->post('statuses/update_with_media.json', [], $post);
 
 		} else {
-			$ex = $response->toException();
-			throw $ex;
+			// Add file to post params
+			$post = [
+				'media' => new \CURLFile($file),
+			];
+
+			$response = $this->httpClient->makeRequest(
+				new Api\Request($this->consumer, $this->config->createUrl('upload', 'media/upload.json'), OAuth\Api\Request::POST, $post, [], $this->getAccessToken()),
+				'HMAC-SHA1'
+			);
+
+			if ($response->isOk() && $response->isJson() && ($data = Utils\ArrayHash::from($response->toArray()))) {
+				return $data;
+
+			} else {
+				$ex = $response->toException();
+				throw $ex;
+			}
 		}
 	}
 
@@ -468,7 +481,7 @@ class Client extends Nette\Object
 		];
 
 		$response = $this->httpClient->makeRequest(
-			new OAuth\Api\Request($this->consumer, $this->config->createUrl('oauth', 'request_token', $params), OAuth\Api\Request::GET),
+			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'request_token', $params), OAuth\Api\Request::GET),
 			'HMAC-SHA1'
 		);
 
@@ -517,7 +530,7 @@ class Client extends Nette\Object
 		$token = new OAuth\Token($this->session->request_token, $this->session->request_token_secret);
 
 		$response = $this->httpClient->makeRequest(
-			new OAuth\Api\Request($this->consumer, $this->config->createUrl('oauth', 'access_token', $params), OAuth\Api\Request::GET, [], [], $token),
+			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'access_token', $params), OAuth\Api\Request::GET, [], [], $token),
 			'HMAC-SHA1'
 		);
 

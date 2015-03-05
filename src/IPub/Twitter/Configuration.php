@@ -30,11 +30,6 @@ class Configuration extends Nette\Object
 	public $appSecret;
 
 	/**
-	 * @var string
-	 */
-	public $permission;
-
-	/**
 	 * @var array
 	 */
 	public $domains = [
