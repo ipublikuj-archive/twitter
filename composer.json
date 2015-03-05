@@ -45,7 +45,10 @@
 	"autoload": {
 		"psr-0": {
 			"IPub\\Twitter\\": "src/"
-		}
+		},
+		"classmap": [
+			"src/IPub/Twitter/Signature/HMAC_SHA1_TWTAPI.php"
+		]
 	},
 
 	"autoload-dev": {

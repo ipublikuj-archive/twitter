@@ -22,6 +22,8 @@ use IPub;
 use IPub\Twitter;
 use IPub\Twitter\Exceptions;
 
+use IPub\OAuth;
+
 /**
  * Component that you can connect to presenter
  * and use as public mediator for Twitter OAuth redirects communication
@@ -117,7 +119,7 @@ class LoginDialog extends Application\UI\Control
 
 	/**
 	 * @throws Nette\Application\AbortException
-	 * @throws Exceptions\RequestFailedException
+	 * @throws OAuth\Exceptions\RequestFailedException
 	 */
 	public function open()
 	{
@@ -125,7 +127,7 @@ class LoginDialog extends Application\UI\Control
 			$this->presenter->redirectUrl($this->getUrl());
 
 		} else {
-			throw new Exceptions\RequestFailedException('User could not be authenticated.', 'twitter');
+			throw new OAuth\Exceptions\RequestFailedException('User could not be authenticated.', 'twitter');
 		}
 	}
 
@@ -134,9 +136,6 @@ class LoginDialog extends Application\UI\Control
 	 */
 	public function getQueryParams()
 	{
-		// CSRF
-		$this->client->getSession()->establishCSRFTokenState();
-
 		$params = [
 			'oauth_token' => $this->session->request_token,
 			'perms' => $this->config->permission
@@ -157,6 +156,6 @@ class LoginDialog extends Application\UI\Control
 	{
 		$this->client->getUser(); // check the received parameters and save user
 		$this->onResponse($this);
-		$this->presenter->redirect('this', ['state' => NULL, 'code' => NULL]);
+		$this->presenter->redirect('this', ['oauth_token' => NULL, 'oauth_verifier' => NULL]);
 	}
 }

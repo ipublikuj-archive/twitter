@@ -48,8 +48,11 @@ class TwitterExtension extends DI\CompilerExtension
 		Utils\Validators::assert($config['appSecret'], 'string', 'Application secret');
 		Utils\Validators::assert($config['permission'], 'string', 'Application permission');
 
+		// Create oAuth consumer
+		$consumer = new IPub\OAuth\Consumer($config['appKey'], $config['appSecret']);
+
 		$builder->addDefinition($this->prefix('client'))
-			->setClass('IPub\Twitter\Client');
+			->setClass('IPub\Twitter\Client', [$consumer]);
 
 		$builder->addDefinition($this->prefix('config'))
 			->setClass('IPub\Twitter\Configuration', [
@@ -61,32 +64,16 @@ class TwitterExtension extends DI\CompilerExtension
 		$builder->addDefinition($this->prefix('session'))
 			->setClass('IPub\Twitter\SessionStorage');
 
+		$builder->addDefinition($this->prefix('signature.hmacsha1twtapi'))
+			->setClass('IPub\Twitter\Signature\HMAC_SHA1_TWTAPI')
+			->addTag(IPub\OAuth\DI\OAuthExtension::TAG_SIGNATURE_METHOD);
+
 		if ($config['clearAllWithLogout']) {
 			$builder->getDefinition('user')
 				->addSetup('$sl = ?; ?->onLoggedOut[] = function () use ($sl) { $sl->getService(?)->clearAll(); }', [
 					'@container', '@self', $this->prefix('session')
 				]);
 		}
-
-/*
-		$api = $builder->addDefinition($this->prefix('api'))
-				->setClass('IPub\Extensions\Social\Twitter\TwitterOAuth', array(
-					$config['consumerKey'],
-					$config['consumerSecret']
-				))
-				->setInject(FALSE);
-
-		if (isset($config['accessToken']) && isset($config['accessTokenSecret'])) {
-			$api->addSetup('setOAuthToken', array(
-				$config['accessToken'],
-				$config['accessTokenSecret']
-			));
-		}
-
-		$builder->addDefinition($this->prefix('authenticator.storage'))
-			->setClass('IPub\Extensions\Social\Twitter\SessionStorage')
-			->setFactory(get_called_class() . '::createSessionStorage', array('@session', $config['authenticator.sessionNamespace']));
-*/
 	}
 
 	/**

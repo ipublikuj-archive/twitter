@@ -40,6 +40,7 @@ class Configuration extends Nette\Object
 	public $domains = [
 		'oauth' => 'https://api.twitter.com/oauth/',
 		'api' => 'https://api.twitter.com/1.1/',
+		'upload' => 'https://upload.twitter.com/1.1/',
 	];
 
 	/**

@@ -18,18 +18,21 @@ use Nette;
 use Nette\Http;
 use Nette\Utils;
 
-use Kdyby\Curl;
-
 use IPub;
 use IPub\Twitter;
-use IPub\Twitter\Api;
+
+use IPub\OAuth;
+use Tracy\Debugger;
 
 class Client extends Nette\Object
 {
-
+	/**
+	 * @var OAuth\Consumer
+	 */
+	protected $consumer;
 
 	/**
-	 * @var IPub\OAuth\HttpClient
+	 * @var OAuth\HttpClient
 	 */
 	private $httpClient;
 
@@ -59,22 +62,25 @@ class Client extends Nette\Object
 	 * The OAuth access token received in exchange for a valid authorization code
 	 * null means the access token has yet to be determined
 	 *
-	 * @var array|null
+	 * @var OAuth\Token
 	 */
 	protected $accessToken;
 
 	/**
+	 * @param OAuth\Consumer $consumer
+	 * @param OAuth\HttpClient $httpClient
 	 * @param Configuration $config
 	 * @param SessionStorage $session
-	 * @param IPub\OAuth\HttpClient $httpClient
 	 * @param Http\IRequest $httpRequest
 	 */
 	public function __construct(
+		OAuth\Consumer $consumer,
+		OAuth\HttpClient $httpClient,
 		Configuration $config,
 		SessionStorage $session,
-		IPub\OAuth\HttpClient $httpClient,
 		Nette\Http\IRequest $httpRequest
 	){
+		$this->consumer = $consumer;
 		$this->config = $config;
 		$this->session = $session;
 		$this->httpClient = $httpClient;
@@ -108,7 +114,7 @@ class Client extends Nette\Object
 	/**
 	 * @internal
 	 *
-	 * @return Api\CurlClient
+	 * @return OAuth\HttpClient
 	 */
 	public function getHttpClient()
 	{
@@ -137,15 +143,11 @@ class Client extends Nette\Object
 			}
 		}
 
-		if (!isset($token['access_token'])) {
-			throw new Exceptions\InvalidArgumentException("It's required that the token has 'access_token' or 'refresh_token' field.");
+		if (!isset($token['access_token']) || !isset($token['access_token_secret'])) {
+			throw new Exceptions\InvalidArgumentException("It's required that the token has 'access_token' and 'access_token_secret' field.");
 		}
 
-		if (isset($token['access_token_secret'])) {
-			$this->setAccessTokenSecret($token['access_token_secret']);
-		}
-
-		$this->accessToken = $token;
+		$this->accessToken = new OAuth\Token($token['access_token'], $token['access_token_secret']);
 
 		return $this;
 	}
@@ -159,7 +161,7 @@ class Client extends Nette\Object
 	 *
 	 * @param string $key
 	 *
-	 * @return array|string The access token
+	 * @return OAuth\Token|string The access token
 	 */
 	public function getAccessToken($key = NULL)
 	{
@@ -168,22 +170,10 @@ class Client extends Nette\Object
 		}
 
 		if ($key !== NULL) {
-			return array_key_exists($key, $this->accessToken) ? $this->accessToken[$key] : NULL;
+			return $this->accessToken->$key ?: NULL;
 		}
 
 		return $this->accessToken;
-	}
-
-	/**
-	 * @param string $secret
-	 *
-	 * @return $this
-	 */
-	public function setAccessTokenSecret($secret)
-	{
-		$this->session->access_token_secret = $secret;
-
-		return $this;
 	}
 
 	/**
@@ -197,11 +187,8 @@ class Client extends Nette\Object
 	 */
 	protected function getUserAccessToken()
 	{
-		if (($verifier = $this->getVerifier()) && $verifier != $this->session->verifier && ($token = $this->getToken()) && $token != $this->session->token) {
+		if (($verifier = $this->getVerifier()) && ($token = $this->getToken())) {
 			if ($this->obtainAccessToken($verifier, $token)) {
-				$this->session->verifier = $verifier;
-				$this->session->token = $token;
-
 				return [
 					'access_token'          => $this->session->access_token,
 					'access_token_secret'   => $this->session->access_token_secret
@@ -231,11 +218,11 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function get($path, array $params = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::GET, $params, [], $headers);
+		return $this->api($path, OAuth\Api\Request::GET, $params, [], $headers);
 	}
 
 	/**
@@ -245,11 +232,11 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function head($path, array $params = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::HEAD, $params, [], $headers);
+		return $this->api($path, OAuth\Api\Request::HEAD, $params, [], $headers);
 	}
 
 	/**
@@ -260,11 +247,11 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function post($path, array $params = [], $post = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::POST, $params, $post, $headers);
+		return $this->api($path, OAuth\Api\Request::POST, $params, $post, $headers);
 	}
 
 	/**
@@ -275,11 +262,11 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function patch($path, array $params = [], $post = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::PATCH, $params, $post, $headers);
+		return $this->api($path, OAuth\Api\Request::PATCH, $params, $post, $headers);
 	}
 
 	/**
@@ -290,11 +277,11 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function put($path, array $params = [], $post = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::PUT, $params, $post, $headers);
+		return $this->api($path, OAuth\Api\Request::PUT, $params, $post, $headers);
 	}
 
 	/**
@@ -304,17 +291,17 @@ class Client extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
 	public function delete($path, array $params = [], array $headers = [])
 	{
-		return $this->api($path, Api\Request::DELETE, $params, [], $headers);
+		return $this->api($path, OAuth\Api\Request::DELETE, $params, [], $headers);
 	}
 
 	/**
 	 * Simply pass anything starting with a slash and it will call the Api, for example
 	 * <code>
-	 * $details = $twitter->api('twitter.people.info');
+	 * $details = $twitter->api('users/show.json');
 	 * </code>
 	 *
 	 * @param string $path
@@ -323,36 +310,26 @@ class Client extends Nette\Object
 	 * @param array|string $post Post request parameters or body to send
 	 * @param array $headers Http request headers
 	 *
-	 * @return Utils\ArrayHash|string|Paginator|ArrayHash[]
+	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
 	 *
-	 * @throws Exceptions\ApiException
+	 * @throws OAuth\Exceptions\ApiException
 	 */
-	public function api($path, $method = Api\Request::GET, array $params = [], $post = [], array $headers = [])
+	public function api($path, $method = OAuth\Api\Request::GET, array $params = [], $post = [], array $headers = [])
 	{
 		if (is_array($method)) {
 			$headers = $post;
 			$post = $params;
 			$params = $method;
-			$method = Api\Request::GET;
+			$method = OAuth\Api\Request::GET;
 		}
 
-		$params = array_merge($params, [
-			'method'            => $path,
-			'format'            => 'json',
-			'nojsoncallback'    => 1,
-		]);
-
-		$params = array_merge($params, $this->getOauthParams());
-
-		$params['oauth_token'] = $this->getAccessToken('access_token');
-
-		$params['oauth_signature'] = $this->getSignature($method, $this->config->createUrl('api', 'rest'), array_merge($params, $post));
-
+		$accessToken = $this->getAccessToken();
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->config->createUrl('api', 'rest', $params), $method, $post, $headers)
+			new OAuth\Api\Request($this->consumer, $this->config->createUrl('api', $path, $params), $method, $post, $headers, $accessToken, ($accessToken ? TRUE:FALSE)),
+			'HMAC-SHA1-TWTAPI'
 		);
 
-		if (!$response->isJson() || (!$data = Utils\ArrayHash::from($response->toArray())) || Utils\Strings::lower($data->stat) != 'ok') {
+		if (!$response->isJson() || (!$data = Utils\ArrayHash::from($response->toArray()))) {
 			$ex = $response->toException();
 			throw $ex;
 		}
@@ -361,82 +338,38 @@ class Client extends Nette\Object
 			return new Paginator($this, $response);
 		}
 
-		return Utils\ArrayHash::from($response->toArray());
+		return $data;
 	}
 
 	/**
 	 * Upload photo to the Twitter
 	 *
-	 * @param string $photo
-	 * @param array $params
+	 * @param string $file
 	 *
 	 * @return int
 	 *
-	 * @throws Exceptions\ApiException|static
 	 * @throws Exceptions\InvalidArgumentException
+	 * @throws OAuth\Exceptions\ApiException|static
 	 */
-	public function uploadPhoto($photo, array $params = [])
+	public function uploadMedia($file)
 	{
-		return $this->processImage('upload', $photo, $params);
-	}
-
-	/**
-	 * Replace photo in Twitter
-	 *
-	 * @param string $photo
-	 * @param int $photoId
-	 * @param bool $async
-	 *
-	 * @return int
-	 *
-	 * @throws Exceptions\ApiException|static
-	 * @throws Exceptions\InvalidArgumentException
-	 */
-	public function replacePhoto($photo, $photoId, $async = FALSE)
-	{
-		// Complete request params
-		$params = [
-			'photo_id' => $photoId,
-			'async' => $async ? 1 : 0
-		];
-
-		return $this->processImage('replace', $photo, $params);
-	}
-
-	/**
-	 * @param string $method
-	 * @param string $photo Path to image
-	 * @param array $params
-	 *
-	 * @return string
-	 *
-	 * @throws Exceptions\ApiException|static
-	 * @throws Exceptions\InvalidArgumentException
-	 */
-	private function processImage($method, $photo, array $params = [])
-	{
-		if (!file_exists($photo)) {
-			throw new Twitter\Exceptions\InvalidArgumentException("File '$photo' does not exists. Please provide valid path to file.");
+		if (!file_exists($file)) {
+			throw new Exceptions\InvalidArgumentException("File '$file' does not exists. Please provide valid path to file.");
 		}
 
-		// Complete request params
-		$params = array_merge($params, $this->getOauthParams());
-		$params['oauth_token'] = $this->getAccessToken('access_token');
-
-		$params['oauth_signature'] = $this->getSignature(Api\Request::POST, $this->config->createUrl('upload', $method), $params);
-
 		// Add file to post params
-		$params['photo'] = new \CURLFile($photo);
+		$post = [
+			'media' => new \CURLFile($file),
+		];
 
+		$accessToken = $this->getAccessToken();
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->config->createUrl('upload', $method), Api\Request::POST, $params)
+			new OAuth\Api\Request($this->consumer, $this->config->createUrl('upload', 'media/upload.json'), OAuth\Api\Request::POST, $post, [], $accessToken, ($accessToken ? TRUE:FALSE)),
+			'HMAC-SHA1-TWTAPI'
 		);
 
-		// Parse REST xml response
-		$xmlContent = simplexml_load_string($response->getContent());
-
-		if ($response->isOk() && Utils\Strings::lower((string) $xmlContent['stat']) == 'ok' && $photoId = (string) $xmlContent->photoid[0]) {
-			return $photoId;
+		if ($response->isOk() && $response->isJson() && ($data = Utils\ArrayHash::from($response->toArray()))) {
+			return $data;
 
 		} else {
 			$ex = $response->toException();
@@ -470,17 +403,17 @@ class Client extends Nette\Object
 
 	/**
 	 * Retrieves the UID with the understanding that $this->accessToken has already been set and is seemingly legitimate
-	 * It relies on Flicker's API to retrieve user information and then extract the user ID.
+	 * It relies on Twitter's API to retrieve user information and then extract the user ID.
 	 *
-	 * @return integer Returns the UID of the Flicker user, or 0 if the Flicker user could not be determined
+	 * @return integer Returns the UID of the Twitter user, or 0 if the Twitter user could not be determined
 	 */
 	protected function getUserFromAccessToken()
 	{
 		try {
-			$user = $this->get('twitter.test.login');
+			$user = $this->get('account/verify_credentials.json');
 
-			if ($user instanceof Utils\ArrayHash && $user->offsetExists('user')) {
-				return $user->user->id;
+			if ($user instanceof Utils\ArrayHash) {
+				return $user->id;
 			}
 
 		// User could not be checked through API calls
@@ -505,7 +438,7 @@ class Client extends Nette\Object
 
 		// use access_token to fetch user id if we have a user access_token, or if
 		// the cached access token has changed
-		if (($accessToken = $this->getAccessToken('access_token')) && !($user && $this->session->access_token === $accessToken)) {
+		if (($accessToken = $this->getAccessToken('token')) && !($user && $this->session->access_token === $accessToken)) {
 			if (!$user = $this->getUserFromAccessToken()) {
 				$this->session->clearAll();
 
@@ -530,35 +463,27 @@ class Client extends Nette\Object
 		$this->session->clearAll();
 
 		// Complete request params
-		$params = $this->getOauthParams();
-		$params['oauth_callback'] = $callback;
-		$params['oauth_signature'] = $this->getSignature(Api\Request::GET, $this->config->createUrl('oauth', 'request_token'), $params);
+		$params = [
+			'oauth_callback' => $callback,
+		];
 
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->config->createUrl('oauth', 'request_token', $params), Api\Request::GET)
+			new OAuth\Api\Request($this->consumer, $this->config->createUrl('oauth', 'request_token', $params), OAuth\Api\Request::GET),
+			'HMAC-SHA1'
 		);
 
-		if ($response->isOk()) {
-			$token = [];
-			parse_str($response->getContent(), $token);
+		if (!$response->isOk() || !$response->isQueryString() || (!$data = Utils\ArrayHash::from($response->toArray()))) {
+			return FALSE;
 
-			if (isset($token['oauth_callback_confirmed']) && Utils\Strings::lower($token['oauth_callback_confirmed']) == 'true') {
-				if (isset($token['oauth_token'])) {
-					$this->session->request_token = $token['oauth_token'];
+		} else if ($data->offsetExists('oauth_callback_confirmed')
+			&& Utils\Strings::lower($data->oauth_callback_confirmed) == 'true'
+			&& $data->offsetExists('oauth_token')
+			&& $data->offsetExists('oauth_token_secret')
+		) {
+			$this->session->request_token = $data->oauth_token;
+			$this->session->request_token_secret = $data->oauth_token_secret;
 
-				} else {
-					return FALSE;
-				}
-
-				if (isset($token['oauth_token_secret'])) {
-					$this->session->request_token_secret = $token['oauth_token_secret'];
-
-				} else {
-					return FALSE;
-				}
-
-				return TRUE;
-			}
+			return TRUE;
 		}
 
 		return FALSE;
@@ -583,179 +508,36 @@ class Client extends Nette\Object
 			return FALSE;
 		}
 
-		$params = $this->getOauthParams();
-		$params['oauth_token'] =  $token;
-		$params['oauth_verifier'] = $verifier;
-		$params['oauth_signature'] = $this->getSignature(Api\Request::GET, $this->config->createUrl('oauth', 'access_token'), $params);
+		// Complete request params
+		$params = [
+			'oauth_token' =>  $token,
+			'oauth_verifier' => $verifier,
+		];
+
+		$token = new OAuth\Token($this->session->request_token, $this->session->request_token_secret);
 
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->config->createUrl('oauth', 'access_token', $params), Api\Request::GET)
+			new OAuth\Api\Request($this->consumer, $this->config->createUrl('oauth', 'access_token', $params), OAuth\Api\Request::GET, [], [], $token),
+			'HMAC-SHA1'
 		);
 
-		if ($response->isOk()) {
-			$token = [];
-			parse_str($response->getContent(), $token);
-
-			if (isset($token['oauth_token'])) {
-				$this->session->access_token = $token['oauth_token'];
-
-			} else {
-				return FALSE;
-			}
-
-			if (isset($token['oauth_token_secret'])) {
-				$this->session->access_token_secret = $token['oauth_token_secret'];
-
-			} else {
-				return FALSE;
-			}
-
-		} else {
+		if (!$response->isOk() || !$response->isQueryString() || (!$data = Utils\ArrayHash::from($response->toArray()))) {
 			// most likely that user very recently revoked authorization.
 			// In any event, we don't have an access token, so say so.
 			return FALSE;
+
+		} else if ($data->offsetExists('oauth_token') && $data->offsetExists('oauth_token_secret')) {
+			// Clear unused variables
+			$this->session->clearAll();
+
+			// Store access token to session
+			$this->session->access_token = $data->oauth_token;
+			$this->session->access_token_secret = $data->oauth_token_secret;
+
+			return TRUE;
 		}
 
-		return TRUE;
-	}
-
-	/**
-	 * Sign an array of parameters with an OAuth signature
-	 *
-	 * @internal
-	 *
-	 * @param string $method
-	 * @param string $url
-	 * @param array $parameters
-	 *
-	 * @return string
-	 */
-	public function getSignature($method, $url, $parameters)
-	{
-		$baseString = $this->getBaseString($method, $url, $parameters);
-
-		$keyPart1 = $this->config->appSecret;
-		$keyPart2 = $this->session->access_token_secret;
-
-		if (empty($keyPart2)) {
-			$keyPart2 = $this->session->request_token_secret;
-		}
-
-		if (empty($keyPart2)) {
-			$keyPart2 = '';
-		}
-
-		$key = "$keyPart1&$keyPart2";
-
-		return base64_encode($this->hmac('sha1', $baseString, $key));
-	}
-
-	/**
-	 * Get the base string for creating an OAuth signature
-	 *
-	 * @param string $method
-	 * @param string $url
-	 * @param array $parameters
-	 * @return string
-	 */
-	private function getBaseString($method, $url, $parameters)
-	{
-		ksort($parameters, SORT_STRING);
-
-		$components = [
-			rawurlencode($method),
-			rawurlencode($url),
-			rawurlencode($this->joinParameters($parameters))
-		];
-
-		$baseString = implode('&', $components);
-
-		return $baseString;
-	}
-
-	/**
-	 * Join an array of parameters together into a URL-encoded string
-	 *
-	 * @param array $parameters
-	 *
-	 * @return string
-	 */
-	private function joinParameters($parameters)
-	{
-		$keyValuePairs = [];
-
-		foreach ($parameters as $key=>$value)  {
-			array_push($keyValuePairs, rawurlencode($key) . "=" . rawurlencode($value));
-		}
-
-		return implode('&', $keyValuePairs);
-	}
-
-	/**
-	 * Get the standard OAuth parameters
-	 *
-	 * @return array
-	 */
-	private function getOauthParams()
-	{
-		$params = [
-			'oauth_nonce' => $this->makeNonce(),
-			'oauth_timestamp' => time(),
-			'oauth_consumer_key' => $this->config->appKey,
-			'oauth_signature_method' => 'HMAC-SHA1',
-			'oauth_version' => self::VERSION,
-		];
-
-		return $params;
-	}
-
-	/**
-	 * Create a nonce
-	 *
-	 * @return string
-	 */
-	private function makeNonce()
-	{
-		// Create a string that will be unique for this app and this user at this time
-		$reasonablyDistinctiveString = implode(':',
-			[
-				$this->config->appSecret,
-				$this->session->user_id,
-				microtime()
-			]
-		);
-
-		return md5($reasonablyDistinctiveString);
-	}
-
-	/**
-	 * @param string $function
-	 * @param string $data
-	 * @param string $key
-	 *
-	 * @return string
-	 */
-	private function hmac($function, $data, $key)
-	{
-		switch($function)
-		{
-			case 'sha1':
-				$pack = 'H40';
-				break;
-
-			default:
-				return '';
-		}
-
-		if (strlen($key) > 64) {
-			$key = pack($pack, $function($key));
-		}
-
-		if (strlen($key) < 64) {
-			$key = str_pad($key, 64, "\0");
-		}
-
-		return (pack($pack, $function((str_repeat("\x5c", 64) ^ $key) . pack($pack, $function((str_repeat("\x36", 64) ^ $key) . $data)))));
+		return FALSE;
 	}
 
 	/**
