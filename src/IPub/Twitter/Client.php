@@ -351,17 +351,19 @@ class Client extends Nette\Object
 			throw new Exceptions\InvalidArgumentException("File '$file' does not exists. Please provide valid path to file.");
 		}
 
-		if ($status && !is_string($status)) {
+		if ($status !== NULL && !is_string($status)) {
 			throw new Exceptions\InvalidArgumentException("Status text '$status' have to be a string. Please provide valid status text.");
 		}
 
-		if ($status) {
+		if ($status !== NULL) {
 			$post = [
 				'media[]' => new \CURLFile($file),
 				'status' => $status
 			];
 
-			return $this->post('statuses/update_with_media.json', [], $post);
+			$result = $this->post('statuses/update_with_media.json', [], $post);
+			
+			return $result instanceof Utils\ArrayHash ? $result : new Utils\ArrayHash;
 
 		} else {
 			// Add file to post params
