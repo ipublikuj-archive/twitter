@@ -77,10 +77,10 @@ class Paginator extends Nette\Object implements \Iterator
 	private $pageCursor;
 
 	/**
-	 * @param Client $client
+	 * @param ApiCall $client
 	 * @param IPub\OAuth\Api\Response $response
 	 */
-	public function __construct(Client $client, IPub\OAuth\Api\Response $response)
+	public function __construct(ApiCall $client, IPub\OAuth\Api\Response $response)
 	{
 		$this->client = $client;
 

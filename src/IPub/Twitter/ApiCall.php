@@ -44,15 +44,41 @@ abstract class ApiCall extends Nette\Object
 	protected $httpClient;
 
 	/**
+	 * @var Configuration
+	 */
+	protected $config;
+
+	/**
 	 * @param OAuth\Consumer $consumer
 	 * @param OAuth\HttpClient $httpClient
+	 * @param Configuration $config
 	 */
 	public function __construct(
 		OAuth\Consumer $consumer,
-		OAuth\HttpClient $httpClient
+		OAuth\HttpClient $httpClient,
+		Configuration $config
 	){
 		$this->consumer = $consumer;
 		$this->httpClient = $httpClient;
+		$this->config = $config;
+	}
+
+	/**
+	 * @internal
+	 *
+	 * @return OAuth\HttpClient
+	 */
+	public function getHttpClient()
+	{
+		return $this->httpClient;
+	}
+
+	/**
+	 * @return Configuration
+	 */
+	public function getConfig()
+	{
+		return $this->config;
 	}
 
 	/**

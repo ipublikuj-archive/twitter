@@ -35,11 +35,6 @@ use IPub\OAuth;
 class Client extends ApiCall
 {
 	/**
-	 * @var Configuration
-	 */
-	private $config;
-
-	/**
 	 * @var SessionStorage
 	 */
 	private $session;
@@ -78,21 +73,12 @@ class Client extends ApiCall
 		SessionStorage $session,
 		Nette\Http\IRequest $httpRequest
 	){
-		parent::__construct($consumer, $httpClient);
+		parent::__construct($consumer, $httpClient, $config);
 
-		$this->config = $config;
 		$this->session = $session;
 		$this->httpRequest = $httpRequest;
 
 		$this->consumer->setCallbackUrl($this->getCurrentUrl());
-	}
-
-	/**
-	 * @return Configuration
-	 */
-	public function getConfig()
-	{
-		return $this->config;
 	}
 
 	/**
@@ -109,16 +95,6 @@ class Client extends ApiCall
 	public function getCurrentUrl()
 	{
 		return clone $this->httpRequest->getUrl();
-	}
-
-	/**
-	 * @internal
-	 *
-	 * @return OAuth\HttpClient
-	 */
-	public function getHttpClient()
-	{
-		return $this->httpClient;
 	}
 
 	/**
