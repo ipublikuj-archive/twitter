@@ -24,18 +24,16 @@ use IPub\Twitter\Api;
 
 use IPub\OAuth;
 
-class Client extends Nette\Object
+/**
+ * Twitter's API and OAuth client
+ *
+ * @package		iPublikuj:Twitter!
+ * @subpackage	common
+ *
+ * @author Adam Kadlec <adam.kadlec@fastybird.com>
+ */
+class Client extends ApiCall
 {
-	/**
-	 * @var OAuth\Consumer
-	 */
-	protected $consumer;
-
-	/**
-	 * @var OAuth\HttpClient
-	 */
-	private $httpClient;
-
 	/**
 	 * @var Configuration
 	 */
@@ -56,7 +54,7 @@ class Client extends Nette\Object
 	 *
 	 * @var integer
 	 */
-	protected $user;
+	private $user;
 
 	/**
 	 * The OAuth access token received in exchange for a valid authorization code
@@ -64,7 +62,7 @@ class Client extends Nette\Object
 	 *
 	 * @var OAuth\Token
 	 */
-	protected $accessToken;
+	private $accessToken;
 
 	/**
 	 * @param OAuth\Consumer $consumer
@@ -80,11 +78,13 @@ class Client extends Nette\Object
 		SessionStorage $session,
 		Nette\Http\IRequest $httpRequest
 	){
-		$this->consumer = $consumer;
+		parent::__construct($consumer, $httpClient);
+
 		$this->config = $config;
 		$this->session = $session;
-		$this->httpClient = $httpClient;
 		$this->httpRequest = $httpRequest;
+
+		$this->consumer->setCallbackUrl($this->getCurrentUrl());
 	}
 
 	/**
@@ -206,187 +206,6 @@ class Client extends Nette\Object
 	}
 
 	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function get($path, array $params = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::GET, $params, [], $headers);
-	}
-
-	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function head($path, array $params = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::HEAD, $params, [], $headers);
-	}
-
-	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $post
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function post($path, array $params = [], array $post = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::POST, $params, $post, $headers);
-	}
-
-	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $post
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function patch($path, array $params = [], array $post = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::PATCH, $params, $post, $headers);
-	}
-
-	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $post
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function put($path, array $params = [], array $post = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::PUT, $params, $post, $headers);
-	}
-
-	/**
-	 * @param string $path
-	 * @param array $params
-	 * @param array $headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function delete($path, array $params = [], array $headers = [])
-	{
-		return $this->api($path, OAuth\Api\Request::DELETE, $params, [], $headers);
-	}
-
-	/**
-	 * Simply pass anything starting with a slash and it will call the Api, for example
-	 * <code>
-	 * $details = $twitter->api('users/show.json');
-	 * </code>
-	 *
-	 * @param string $path
-	 * @param string $method The argument is optional
-	 * @param array $params Query parameters
-	 * @param array $post Post request parameters or body to send
-	 * @param array $headers Http request headers
-	 *
-	 * @return Utils\ArrayHash|string|Paginator|Utils\ArrayHash[]
-	 *
-	 * @throws OAuth\Exceptions\ApiException
-	 */
-	public function api($path, $method = OAuth\Api\Request::GET, array $params = [], array $post = [], array $headers = [])
-	{
-		if (is_array($method)) {
-			$headers = $post;
-			$post = $params;
-			$params = $method;
-			$method = OAuth\Api\Request::GET;
-		}
-
-		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->consumer, $this->config->createUrl('api', $path, $params), $method, $post, $headers, $this->getAccessToken()),
-			'HMAC-SHA1'
-		);
-
-		if (!$response->isJson() || (!$data = Utils\ArrayHash::from($response->toArray()))) {
-			$ex = $response->toException();
-			throw $ex;
-		}
-
-		if ($response->isPaginated()) {
-			return new Paginator($this, $response);
-		}
-
-		return $data;
-	}
-
-	/**
-	 * Upload photo to the Twitter
-	 *
-	 * @param string $file
-	 * @param string|null $status
-	 *
-	 * @return Utils\ArrayHash
-	 *
-	 * @throws Exceptions\InvalidArgumentException
-	 * @throws OAuth\Exceptions\ApiException|static
-	 */
-	public function uploadMedia($file, $status = NULL)
-	{
-		if (!file_exists($file)) {
-			throw new Exceptions\InvalidArgumentException("File '$file' does not exists. Please provide valid path to file.");
-		}
-
-		if ($status !== NULL && !is_string($status)) {
-			throw new Exceptions\InvalidArgumentException("Status text '$status' have to be a string. Please provide valid status text.");
-		}
-
-		if ($status !== NULL) {
-			$post = [
-				'media[]' => new \CURLFile($file),
-				'status' => $status
-			];
-
-			$result = $this->post('statuses/update_with_media.json', [], $post);
-			
-			return $result instanceof Utils\ArrayHash ? $result : new Utils\ArrayHash;
-
-		} else {
-			// Add file to post params
-			$post = [
-				'media' => new \CURLFile($file),
-			];
-
-			$response = $this->httpClient->makeRequest(
-				new Api\Request($this->consumer, $this->config->createUrl('upload', 'media/upload.json'), OAuth\Api\Request::POST, $post, [], $this->getAccessToken()),
-				'HMAC-SHA1'
-			);
-
-			if ($response->isOk() && $response->isJson() && ($data = Utils\ArrayHash::from($response->toArray()))) {
-				return $data;
-
-			} else {
-				$ex = $response->toException();
-				throw $ex;
-			}
-		}
-	}
-
-	/**
 	 * Get the UID of the connected user, or 0 if the Twitter user is not connected.
 	 *
 	 * @return string the UID if available.
@@ -462,22 +281,22 @@ class Client extends Nette\Object
 	/**
 	 * Get a request token from Twitter
 	 *
-	 * @param string $callback
+	 * @param string|null $callback
 	 *
 	 * @return bool
 	 */
-	public function obtainRequestToken($callback)
+	public function obtainRequestToken($callback = NULL)
 	{
 		// Before first handshake, session have to cleared
 		$this->session->clearAll();
 
 		// Complete request params
 		$params = [
-			'oauth_callback' => $callback,
+			'oauth_callback' => $callback ?:$this->consumer->getCallbackUrl(),
 		];
 
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'request_token', $params), OAuth\Api\Request::GET),
+			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'request_token', $params), OAuth\Api\Request::POST),
 			'HMAC-SHA1'
 		);
 
@@ -526,7 +345,7 @@ class Client extends Nette\Object
 		$token = new OAuth\Token($this->session->request_token, $this->session->request_token_secret);
 
 		$response = $this->httpClient->makeRequest(
-			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'access_token', $params), OAuth\Api\Request::GET, [], [], $token),
+			new Api\Request($this->consumer, $this->config->createUrl('oauth', 'access_token', $params), OAuth\Api\Request::POST, [], [], $token),
 			'HMAC-SHA1'
 		);
 

@@ -19,6 +19,12 @@ use Nette;
 use IPub;
 
 /**
+ * Response paginator
+ *
+ * @package		iPublikuj:Twitter!
+ * @subpackage	common
+ *
+ * @author Adam Kadlec <adam.kadlec@fastybird.com>
  * @author Filip Procházka <filip@prochazka.su>
  */
 class Paginator extends Nette\Object implements \Iterator
@@ -38,7 +44,7 @@ class Paginator extends Nette\Object implements \Iterator
 	/**
 	 * @var int
 	 */
-	private $firstPage;
+	private $firstPage = 1;
 
 	/**
 	 * @var int
@@ -82,8 +88,7 @@ class Paginator extends Nette\Object implements \Iterator
 		$resource = $response->toArray();
 
 		$params = $response->request->getParameters();
-		$this->firstPage = isset($params['page']) ? (int) max($params['page'], 1) : 1;
-		$this->perPage = isset($params['per_page']) ? (int) $params['per_page'] : count($resource);
+		$this->perPage = isset($params['count']) ? (int) $params['count'] : count($resource);
 
 		$this->responses[$this->firstPage] = $response;
 		$this->resources[$this->firstPage] = $resource;
@@ -91,7 +96,7 @@ class Paginator extends Nette\Object implements \Iterator
 
 	/**
 	 * If you setup maximum number of results, the pagination will stop after fetching the desired number.
-	 * If you have per_page=50 and wan't to fetch 200 results, it will make 4 requests in total.
+	 * If you have count=50 and wan't to fetch 200 results, it will make 4 requests in total.
 	 *
 	 * @param int $maxResults
 	 *
@@ -160,11 +165,19 @@ class Paginator extends Nette\Object implements \Iterator
 		try {
 			$prevRequest = $this->responses[$this->pageCursor]->getRequest();
 
+			// Get all request parameters
 			$params = $this->responses[$this->pageCursor]->request->getParameters();
-			$params['page'] = isset($params['page']) ? (int) max($params['page'], 1) + 1 : 1;
+			// Get last record
+			$current = Nette\Utils\ArrayHash::from($this->resources[$this->pageCursor][$this->itemCursor-1]);
+			// And set maximum ID
+			$params['max_id'] = $current->id;
+			// Get requested path
+			$path = $prevRequest->getUrl()->getPath();
+			$path = ltrim($path, '/1.1/');
 
 			$response = $this->httpClient->makeRequest(
-				$prevRequest->copyWithUrl($this->client->getConfig()->createUrl('api', 'rest', $params))
+				$prevRequest->copyWithUrl($this->client->getConfig()->createUrl('api', $path, $params)),
+				'HMAC-SHA1'
 			);
 
 			$this->itemCursor = 0;

@@ -20,6 +20,14 @@ use Nette\Utils;
 use IPub;
 use IPub\Twitter\Exceptions;
 
+/**
+ * Twitter's user profile
+ *
+ * @package		iPublikuj:Twitter!
+ * @subpackage	common
+ *
+ * @author Adam Kadlec <adam.kadlec@fastybird.com>
+ */
 class Profile extends Nette\Object
 {
 	/**

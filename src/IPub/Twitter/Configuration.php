@@ -17,6 +17,14 @@ namespace IPub\Twitter;
 use Nette;
 use Nette\Http;
 
+/**
+ * Twitter's extension configuration storage. Store basic extension settings
+ *
+ * @package		iPublikuj:Twitter!
+ * @subpackage	common
+ *
+ * @author Adam Kadlec <adam.kadlec@fastybird.com>
+ */
 class Configuration extends Nette\Object
 {
 	/**

@@ -31,6 +31,8 @@ use IPub\OAuth;
  * @package		iPublikuj:Twitter!
  * @subpackage	UI
  *
+ * @author Adam Kadlec <adam.kadlec@fastybird.com>
+ *
  * @method onResponse(LoginDialog $dialog)
  */
 class LoginDialog extends Application\UI\Control
@@ -56,11 +58,6 @@ class LoginDialog extends Application\UI\Control
 	protected $session;
 
 	/**
-	 * @var Http\UrlScript
-	 */
-	protected $currentUrl;
-
-	/**
 	 * @param Twitter\Client $twitter
 	 */
 	public function __construct(Twitter\Client $twitter)
@@ -68,7 +65,6 @@ class LoginDialog extends Application\UI\Control
 		$this->client = $twitter;
 		$this->config = $twitter->getConfig();
 		$this->session = $twitter->getSession();
-		$this->currentUrl = $twitter->getCurrentUrl();
 
 		parent::__construct();
 
@@ -91,7 +87,7 @@ class LoginDialog extends Application\UI\Control
 		parent::attached($obj);
 
 		if ($obj instanceof Nette\Application\IPresenter) {
-			$this->currentUrl = new Http\UrlScript($this->link('//response!'));
+			$this->client->getConsumer()->setCallbackUrl(new Http\UrlScript($this->link('//response!')));
 		}
 	}
 
@@ -123,7 +119,7 @@ class LoginDialog extends Application\UI\Control
 	 */
 	public function open()
 	{
-		if ($this->client->obtainRequestToken((string) $this->currentUrl)) {
+		if ($this->client->obtainRequestToken()) {
 			$this->presenter->redirectUrl($this->getUrl());
 
 		} else {
