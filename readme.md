@@ -32,6 +32,8 @@ extensions:
 	twitter: IPub\Twitter\DI\TwitterExtension
 ```
 
+> NOTE: Don't forget to register [OAuth extension](http://github.com/iPublikuj/oauth), because this extension is depended on it!
+
 ## Documentation
 
 Learn how to authenticate the user using Twitter's oauth or call Twitter's api in [documentation](https://github.com/iPublikuj/twitter/blob/master/docs/en/index.md).
