@@ -32,8 +32,8 @@ class TwitterExtension extends DI\CompilerExtension
 	 * @var array
 	 */
 	protected $defaults = [
-		'appKey' => NULL,
-		'appSecret' => NULL,
+		'consumerKey' => NULL,
+		'consumerSecret' => NULL,
 		'clearAllWithLogout' => TRUE,
 	];
 
@@ -42,19 +42,19 @@ class TwitterExtension extends DI\CompilerExtension
 		$config = $this->getConfig($this->defaults);
 		$builder = $this->getContainerBuilder();
 
-		Utils\Validators::assert($config['appKey'], 'string', 'Application key');
-		Utils\Validators::assert($config['appSecret'], 'string', 'Application secret');
+		Utils\Validators::assert($config['consumerKey'], 'string', 'Application key');
+		Utils\Validators::assert($config['consumerSecret'], 'string', 'Application secret');
 
 		// Create oAuth consumer
-		$consumer = new IPub\OAuth\Consumer($config['appKey'], $config['appSecret']);
+		$consumer = new IPub\OAuth\Consumer($config['consumerKey'], $config['consumerSecret']);
 
 		$builder->addDefinition($this->prefix('client'))
 			->setClass('IPub\Twitter\Client', [$consumer]);
 
 		$builder->addDefinition($this->prefix('config'))
 			->setClass('IPub\Twitter\Configuration', [
-				$config['appKey'],
-				$config['appSecret'],
+				$config['consumerKey'],
+				$config['consumerSecret'],
 			]);
 
 		$builder->addDefinition($this->prefix('session'))

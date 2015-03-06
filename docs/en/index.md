@@ -31,12 +31,12 @@ extensions:
 
 ### Basic configuration
 
-This extension creates a special section for configuration for your NEON configuration file. The absolute minimal configuration is appId and appSecret.
+This extension creates a special section for configuration for your NEON configuration file. The absolute minimal configuration is consumerKey and consumerSecret.
 
 ```neon
 twitter
-	appKey      : "123456789"
-	appSecret   : "e807f1fcf82d132f9bb018ca6738a19f"
+	consumerKey    : "123456789"
+	consumerSecret : "e807f1fcf82d132f9bb018ca6738a19f"
 ```
 
 ### Authentication

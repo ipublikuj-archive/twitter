@@ -42,12 +42,12 @@ class ConfigurationTest extends Tester\TestCase
 		Assert::match('https://api.twitter.com/1.1/account/verify_credentials.json', (string) $this->config->createUrl('api', 'account/verify_credentials.json'));
 
 		Assert::match('https://api.twitter.com/oauth/access_token?oauth_consumer_key=123&oauth_signature_method=HMAC-SHA1', (string) $this->config->createUrl('oauth', 'access_token', array(
-			'oauth_consumer_key' => $this->config->appKey,
+			'oauth_consumer_key' => $this->config->consumerKey,
 			'oauth_signature_method' => 'HMAC-SHA1'
 		)));
 
 		Assert::match('https://api.twitter.com/oauth/request_token?oauth_consumer_key=123&oauth_signature_method=HMAC-SHA1', (string) $this->config->createUrl('oauth', 'request_token', array(
-			'oauth_consumer_key' => $this->config->appKey,
+			'oauth_consumer_key' => $this->config->consumerKey,
 			'oauth_signature_method' => 'HMAC-SHA1'
 		)));
 	}
