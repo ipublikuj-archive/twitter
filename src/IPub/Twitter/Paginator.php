@@ -32,7 +32,7 @@ class Paginator extends Nette\Object implements \Iterator
 	const PER_PAGE_MAX = 100;
 
 	/**
-	 * @var Client
+	 * @var ApiCall
 	 */
 	private $client;
 
