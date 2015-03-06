@@ -79,9 +79,9 @@ class ClientTest extends TestCase
 
 		$firstRequest = $this->httpClient->requests[0];
 
-		Assert::same('GET', $firstRequest->getMethod());
+		Assert::same('POST', $firstRequest->getMethod());
 		Assert::match('https://api.twitter.com/oauth/access_token', $firstRequest->getUrl()->getHostUrl() . $firstRequest->getUrl()->getPath());
-		Assert::same(['Accept' => 'application/json'], $firstRequest->getHeaders());
+		Assert::same(['Authorization' => $this->generateAuthenticationHeader($firstRequest->getParameters()), 'Accept' => 'application/json'], $firstRequest->getHeaders());
 
 		$secondRequest = $this->httpClient->requests[1];
 
