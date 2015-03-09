@@ -237,13 +237,14 @@ abstract class ApiCall extends Nette\Object
 	 *
 	 * @return Utils\ArrayHash
 	 *
+	 * @throws Exceptions\FileNotFoundException
 	 * @throws Exceptions\InvalidArgumentException
 	 * @throws OAuth\Exceptions\ApiException|static
 	 */
 	public function uploadMedia($file, $status = NULL)
 	{
 		if (!file_exists($file)) {
-			throw new Exceptions\InvalidArgumentException("File '$file' does not exists. Please provide valid path to file.");
+			throw new Exceptions\FileNotFoundException("File '$file' does not exists. Please provide valid path to file.");
 		}
 
 		if ($status !== NULL && !is_string($status)) {
