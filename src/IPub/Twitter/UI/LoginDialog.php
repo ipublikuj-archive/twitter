@@ -144,7 +144,7 @@ class LoginDialog extends Application\UI\Control
 	 */
 	public function getUrl()
 	{
-		return (string) $this->config->createUrl('oauth', 'authorize', $this->getQueryParams());
+		return (string) $this->config->createUrl('oauth', 'authenticate', $this->getQueryParams());
 	}
 
 	public function handleResponse()
