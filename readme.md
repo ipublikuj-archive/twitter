@@ -9,20 +9,10 @@ Twitter API client with authorization for [Nette Framework](http://nette.org/)
 
 ## Installation
 
-The best way to install ipub/twitter is using  [Composer](http://getcomposer.org/):
-
-```json
-{
-	"require": {
-		"ipub/twitter": "dev-master"
-	}
-}
-```
-
-or
+The best way to install ipub/twitter is using [Composer](http://getcomposer.org/):
 
 ```sh
-$ composer require ipub/twitter:@dev
+$ composer require ipub/twitter
 ```
 
 After that you have to register extension in config.neon.
