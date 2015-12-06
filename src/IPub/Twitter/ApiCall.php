@@ -243,7 +243,7 @@ abstract class ApiCall extends Nette\Object
 	 */
 	public function uploadMedia($file, $status = NULL)
 	{
-		if (!file_exists($file)) {
+		if (!is_file($file)) {
 			throw new Exceptions\FileNotFoundException("File '$file' does not exists. Please provide valid path to file.");
 		}
 
