@@ -34,6 +34,7 @@ use IPub\OAuth;
  * @author Adam Kadlec <adam.kadlec@fastybird.com>
  *
  * @method onResponse(LoginDialog $dialog)
+ * @method onDialogNotOpened(LoginDialog $dialog, Exception $ex)
  */
 class LoginDialog extends Application\UI\Control
 {
@@ -41,6 +42,11 @@ class LoginDialog extends Application\UI\Control
 	 * @var array of function(LoginDialog $dialog)
 	 */
 	public $onResponse = [];
+
+	/**
+	 * @var \Closure[]
+	 */
+	public $onDialogNotOpened = [];
 
 	/**
 	 * @var Twitter\Client
@@ -106,7 +112,12 @@ class LoginDialog extends Application\UI\Control
 	public function handleOpen()
 	{
 		if (!$this->client->getUser()) { // no user
-			$this->open();
+			try {
+				$this->open();
+			} catch (OAuth\Exceptions\IException $ex) {
+				$this->onDialogNotOpened($this, $ex);
+				throw $ex;
+			}
 		}
 
 		$this->onResponse($this);
